@@ -4,12 +4,12 @@ SARCASM is an assembly language poking fun at the x86 Assembly instruction set f
 
 # How do you do it?
 
-Provided in the python file workspace.py you will see these 4 functions setup
+Provided in the python file workspace.py you will see these 4 functions set up for you.
 
-run_snippet(CATprogram)
-print(microinstructions_to_instruction(CATprogram))
-print(disassemble(CATprogram))
-print(instruction_to_microinstructions(microinstructions_to_instruction(CATprogram)))
+run_snippet(CATprogram)<br>
+print(microinstructions_to_instruction(CATprogram))<br>
+print(disassemble(CATprogram))<br>
+print(instruction_to_microinstructions(microinstructions_to_instruction(CATprogram)))<br>
 
 Run_snippet runs a series of microinstructions, microinstructions are stored in an array. 
 The second function converts those microinstructions into a full instruction. 
