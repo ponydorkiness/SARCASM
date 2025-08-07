@@ -5,6 +5,7 @@ SARCASM is an assembly language poking fun at the x86 Assembly instruction set f
 # How do you do it?
 
 Provided in the python file workspace.py you will see these 4 functions setup
+
 run_snippet(CATprogram)
 print(microinstructions_to_instruction(CATprogram))
 print(disassemble(CATprogram))
