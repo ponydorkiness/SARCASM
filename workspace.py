@@ -66,61 +66,63 @@ else:
         return ch
 
 class UInt16:
-    def __init__(self, value=0):
-        self.max_value = 2**16
-        self.value = value % self.max_value
+    def __init__(self, value):
+        self.value = value & 0xFFFF  # Force 16-bit range
 
     def __int__(self):
         return self.value
 
+    # Arithmetic operations
+    def __add__(self, other):
+        return UInt16(self.value + int(other))
+
+    def __sub__(self, other):
+        return UInt16(self.value - int(other))
+
+    def __mul__(self, other):
+        return UInt16(self.value * int(other))
+
+    def __floordiv__(self, other):
+        return UInt16(self.value // int(other))
+
+    def __pow__(self, power, modulo=None):
+        return UInt16(pow(self.value, int(power), 0x10000))
+
+    # In-place variants (return new objects to prevent aliasing bugs)
+    def __iadd__(self, other):
+        return self.__add__(other)
+
+    def __isub__(self, other):
+        return self.__sub__(other)
+
+    def __imul__(self, other):
+        return self.__mul__(other)
+
+    def __ifloordiv__(self, other):
+        return self.__floordiv__(other)
+
+    # Comparisons
+    def __eq__(self, other):
+        return self.value == int(other)
+
+    def __lt__(self, other):
+        return self.value < int(other)
+
+    def __le__(self, other):
+        return self.value <= int(other)
+
+    def __gt__(self, other):
+        return self.value > int(other)
+
+    def __ge__(self, other):
+        return self.value >= int(other)
+
+    # String representation
     def __repr__(self):
         return str(self.value)
 
-    def __iadd__(self, other):
-        other_val = int(other)
-        self.value = (self.value + other_val) % self.max_value
-        return self
-
-    def __isub__(self, other):
-        other_val = int(other)
-        self.value = (self.value - other_val) % self.max_value
-        return self
-
-    def __add__(self, other):
-        other_val = int(other)
-        return UInt16((self.value + other_val) % self.max_value)
-
-    def __sub__(self, other):
-        other_val = int(other)
-        return UInt16((self.value - other_val) % self.max_value)
-
-    def __imul__(self, other):
-        other_val = int(other)
-        self.value = (self.value * other_val) % self.max_value
-        return self
-
-    def __mul__(self, other):
-        other_val = int(other)
-        return UInt16((self.value * other_val) % self.max_value)
-
-    def __ifloordiv__(self, other):
-        other_val = int(other)
-        if other_val == 0:
-            self.value = 0
-        else:
-            self.value = (self.value // other_val) % self.max_value
-        return self
-
-    def __floordiv__(self, other):
-        other_val = int(other)
-        if other_val == 0:
-            return UInt16(0)
-        else:
-            return UInt16((self.value // other_val) % self.max_value)
-
-    def __pow__(self, power):
-        power_val = int(power)
-        return UInt16((self.value ** power_val) % self.max_value)
+    def __str__(self):
+        return str(self.value)
 
 class UInt16Array:
     def __init__(self, size):
@@ -354,4 +356,5 @@ CATprogram = [
 run_snippet(CATprogram)
 print(microinstructions_to_instruction(CATprogram))
 print(disassemble(CATprogram))
+
 print(instruction_to_microinstructions(microinstructions_to_instruction(CATprogram)))
