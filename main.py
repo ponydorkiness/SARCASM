@@ -168,103 +168,112 @@ if __name__ == "__main__":
     accumulator = UInt16(0)
     registerA = UInt16(0)
     checkFlag = 0
+    overheadPC = 0
+    
+    while overheadPC < len(sentence):
+        if overheadPC >= 0:
+            word = sentence[overheadPC]
+            wordz = fetch(word)
+            wordz = shuffle(wordz)
+            base = 36
+            wordz += 1
+            array = to_base_n_1_indexed(wordz, base)
+            pc = 0  # program counter
+            jumpModification = 0
+            while pc < len(array):
+                if pc >= 0:
+                    opcode = array[pc]
+                    if opcode == 1: # Increment pointer
+                        pointerOne += UInt16(1)
+                    elif opcode == 2: # Decrement pointer
+                        pointerTwo += UInt16(1)
+                    elif opcode == 3: # Set pointerone to accumlator
+                        pointerOne = UInt16(int(accumulator))
+                    elif opcode == 4: # Set pointertwo to accumlator
+                        pointerTwo = UInt16(int(accumulator))
+                    elif opcode == 5: # Set pointer to the memory addr it is pointing at
+                        pointerOne = memory[int(pointerOne)]
+                    elif opcode == 6: # Set pointer to the memory addr it is pointing at
+                        pointerTwo = memory[int(pointerOne)]
+                    elif opcode == 7: # set pointerOne addr to pointerTwo addr
+                        memory[int(pointerOne)] = UInt16(int(memory[int(pointerTwo)]))
+                    elif opcode == 8: # set pointerTwo addr to pointerOne addr
+                        memory[int(pointerTwo)] = memory[int(pointerOne)]
+                    elif opcode == 9: # swap values
+                        memory[int(pointerOne)], memory[int(pointerTwo)] = memory[int(pointerTwo)], memory[int(pointerOne)]
+                    elif opcode == 10:
+                        memory[int(pointerOne)] = UInt16(0)
+                    elif opcode == 11:
+                        memory[int(pointerTwo)] = UInt16(0)
+                    elif opcode == 12:
+                        accumulator += registerA
+                    elif opcode == 13:
+                        accumulator -= registerA
+                    elif opcode == 14:
+                        accumulator  *= registerA
+                    elif opcode == 15:
+                        accumulator  //= registerA
+                    elif opcode == 16:
+                        accumulator = UInt16(int(registerA))
+                    elif opcode == 17:
+                        accumulator = accumulator  ** 2
+                    elif opcode == 18:
+                        registerA = UInt16(int(memory[int(pointerOne)]))
+                    elif opcode == 19:
+                        registerA = UInt16(int(memory[int(pointerTwo)]))
+                    elif opcode == 20:
+                        if checkFlag == 1:
+                            jumpModification = int(memory[int(pointerOne)])
+                        else:
+                            jumpModification = int(memory[int(pointerOne)])*-1
+                    elif opcode == 21:
+                        memory[int(pointerOne)] += 1
+                    elif opcode == 22:
+                        memory[int(pointerTwo)] += 1
+                    elif opcode == 23:
+                        memory[int(pointerOne)] -= 1
+                    elif opcode == 24:
+                        memory[int(pointerTwo)] -= 1
+                    elif opcode == 25:
+                        pc += int(accumulator)
+                    elif opcode == 26:
+                        pc -= int(accumulator)
+                    elif opcode == 27:
+                        memory[int(pointerOne)] = UInt16(int(accumulator))
+                    elif opcode == 28:
+                        memory[int(pointerTwo)] = UInt16(int(accumulator))
+                    elif opcode == 29: # input
+                        if Input:
+                            char = getch()
+                            memory[int(pointerOne)] = ord(char)
+                    elif opcode == 30:
+                        if Output:
+                            val = int(memory[int(pointerOne)])
+                            try:
+                                print(chr(val), end='') 
+                            except ValueError:
+                                print('?', end='')
+                    elif opcode == 31:
+                        if int(accumulator) == int(registerA):
+                            checkFlag = 1
+                        else:
+                            checkFlag = 0
+                    elif opcode == 32:
+                        if int(accumulator) < int(registerA):
+                            checkFlag = 1
+                        else:
+                            checkFlag = 0
+                    elif opcode == 33:
+                        accumulator = UInt16(checkFlag)
+                    elif opcode == 34: # Not Checkflag
+                        checkFlag = 1-checkFlag 
+                    elif opcode:
+                        pass
+                pc += 1
+        overheadPC += jumpModification
+        overheadPC += 1
+    if Debug:
+        print("")
+        print(f"P1: {pointerOne} P2: {pointerTwo}\nACC: {accumulator}  REG:{registerA} CHKF:{checkFlag} OHPC:{checkFlag}")
+        print(memory[:30])
 
-    for word in sentence:
-        wordz = fetch(word)
-        wordz = shuffle(wordz)
-        base = 36
-        wordz += 1
-        array = to_base_n_1_indexed(wordz, base)
-        pc = 0  # program counter
-        while pc < len(array):
-            if pc >= 0:
-                opcode = array[pc]
-                if opcode == 1: # Increment pointer
-                    pointerOne += UInt16(1)
-                elif opcode == 2: # Decrement pointer
-                    pointerTwo += UInt16(1)
-                elif opcode == 3: # Set pointerone to accumlator
-                    pointerOne = UInt16(int(accumulator))
-                elif opcode == 4: # Set pointertwo to accumlator
-                    pointerTwo = UInt16(int(accumulator))
-                elif opcode == 5: # Set pointer to the memory addr it is pointing at
-                    pointerOne = memory[int(pointerOne)]
-                elif opcode == 6: # Set pointer to the memory addr it is pointing at
-                    pointerTwo = memory[int(pointerOne)]
-                elif opcode == 7: # set pointerOne addr to pointerTwo addr
-                    memory[int(pointerOne)] = UInt16(int(memory[int(pointerTwo)]))
-                elif opcode == 8: # set pointerTwo addr to pointerOne addr
-                    memory[int(pointerTwo)] = memory[int(pointerOne)]
-                elif opcode == 9: # swap values
-                    memory[int(pointerOne)], memory[int(pointerTwo)] = memory[int(pointerTwo)], memory[int(pointerOne)]
-                elif opcode == 10:
-                    memory[int(pointerOne)] = UInt16(0)
-                elif opcode == 11:
-                    memory[int(pointerTwo)] = UInt16(0)
-                elif opcode == 12:
-                    accumulator += registerA
-                elif opcode == 13:
-                    accumulator -= registerA
-                elif opcode == 14:
-                    accumulator  *= registerA
-                elif opcode == 15:
-                    accumulator  //= registerA
-                elif opcode == 16:
-                    accumulator = UInt16(int(registerA))
-                elif opcode == 17:
-                    accumulator = accumulator  ** 2
-                elif opcode == 18:
-                    registerA = UInt16(int(memory[int(pointerOne)]))
-                elif opcode == 19:
-                    registerA = UInt16(int(memory[int(pointerTwo)]))
-                elif opcode == 20:
-                    memory[int(pointerOne)] = UInt16(int(registerA))
-                elif opcode == 21:
-                    memory[int(pointerOne)] += 1
-                elif opcode == 22:
-                    memory[int(pointerTwo)] += 1
-                elif opcode == 23:
-                    memory[int(pointerOne)] -= 1
-                elif opcode == 24:
-                    memory[int(pointerTwo)] -= 1
-                elif opcode == 25:
-                    pc += int(accumulator)
-                elif opcode == 26:
-                    pc -= int(accumulator)
-                elif opcode == 27:
-                    memory[int(pointerOne)] = UInt16(int(accumulator))
-                elif opcode == 28:
-                    memory[int(pointerTwo)] = UInt16(int(accumulator))
-                elif opcode == 29: # input
-                    if Input:
-                        char = getch()
-                        memory[int(pointerOne)] = ord(char)
-                elif opcode == 30:
-                    if Output:
-                        val = int(memory[int(pointerOne)])
-                        try:
-                            print(chr(val), end='') 
-                        except ValueError:
-                            print('?', end='')
-                elif opcode == 31:
-                    if int(accumulator) == int(registerA):
-                        checkFlag = 1
-                    else:
-                        checkFlag = 0
-                elif opcode == 32:
-                    if int(accumulator) < int(registerA):
-                        checkFlag = 1
-                    else:
-                        checkFlag = 0
-                elif opcode == 33:
-                    accumulator = UInt16(checkFlag)
-                elif opcode == 34: # Not Checkflag
-                    checkFlag = 1-checkFlag 
-                elif opcode:
-                    pass
-            pc += 1
-        if Debug:
-            print("")
-            print(f"P1: {pointerOne} P2: {pointerTwo}\nACC: {accumulator}  REG:{registerA} CHKF:{checkFlag}")
-
-            print(memory[:30])
