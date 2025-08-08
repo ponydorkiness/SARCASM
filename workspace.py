@@ -22,7 +22,7 @@ def disassemble(opcodes):
         17: "SQR ACC",                   # accumulator = accumulator^2
         18: "MOV REGA, $PTR1",           # registerA = memory[pointerOne]
         19: "MOV REGA, $PTR2",           # registerA = memory[pointerTwo]
-        20: "MOV $PTR1, REGA",           # memory[pointerOne] = registerA
+        20: "JMP $PTR1, CF",           # jump backwards by $PTR1 if checkflag is 0 jump fowards by $PTR1 if checkflag is 1 
         21: "INC $PTR1",                 # memory[pointerOne] += 1
         22: "INC $PTR2",                 # memory[pointerTwo] += 1
         23: "DEC $PTR1",                 # memory[pointerOne] -= 1
@@ -233,7 +233,8 @@ def run_snippet(array):
     accumulator = UInt16(0)
     registerA = UInt16(0)
     checkFlag = 0
-
+     
+    overheadPC = 0
 
     Input = True
     Output =  True
@@ -280,7 +281,10 @@ def run_snippet(array):
             elif opcode == 19:
                 registerA = UInt16(int(memory[int(pointerTwo)]))
             elif opcode == 20:
-                memory[int(pointerOne)] = UInt16(int(registerA))
+                if checkFlag == 1:
+                    overheadPC = int(memory[int(pointerOne)])
+                else:
+                    overheadPC = int(memory[int(pointerOne)])*-1
             elif opcode == 21:
                 memory[int(pointerOne)] += 1
             elif opcode == 22:
@@ -329,6 +333,7 @@ def run_snippet(array):
     print("=== End Of Execution ===")
     print(f"P1: {pointerOne} P2: {pointerTwo}\nACC: {accumulator}  REG:{registerA} CHKF:{checkFlag}")
     print(memory[:30])
+    print(f"EFFECT ON OHPC:{overheadPC}")
 
 CATprogram = [
     10, # Clear cell
@@ -358,3 +363,4 @@ print(microinstructions_to_instruction(CATprogram))
 print(disassemble(CATprogram))
 
 print(instruction_to_microinstructions(microinstructions_to_instruction(CATprogram)))
+
