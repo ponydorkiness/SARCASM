@@ -37,7 +37,7 @@ def disassemble(opcodes):
         32: "CMP LT ACC, REGA",          # checkFlag = (acc < registerA) ? 1 : 0
         33: "MOV ACC, FLAG",             # accumulator = checkFlag
         34: "NOT FLAG",                   # checkFlag = 1 - checkFlag
-        35: "NOP",
+        35: "TOGGLE ENCHANT",            # Toggle enchantment on memory[pointerOne]
         36: "NOP"
     }
     
@@ -66,40 +66,45 @@ else:
         return ch
 
 class UInt16:
-    def __init__(self, value):
+    def __init__(self, value, enchanted=False):
         self.value = value & 0xFFFF  # Force 16-bit range
+        self.enchanted = enchanted
 
     def __int__(self):
         return self.value
 
     # Arithmetic operations
     def __add__(self, other):
-        return UInt16(self.value + int(other))
+        return UInt16(self.value + int(other), self.enchanted)
 
     def __sub__(self, other):
-        return UInt16(self.value - int(other))
+        return UInt16(self.value - int(other), self.enchanted)
 
     def __mul__(self, other):
-        return UInt16(self.value * int(other))
+        return UInt16(self.value * int(other), self.enchanted)
 
     def __floordiv__(self, other):
-        return UInt16(self.value // int(other))
+        return UInt16(self.value // int(other), self.enchanted)
 
     def __pow__(self, power, modulo=None):
-        return UInt16(pow(self.value, int(power), 0x10000))
+        return UInt16(pow(self.value, int(power), 0x10000), self.enchanted)
 
-    # In-place variants (return new objects to prevent aliasing bugs)
+    # In-place variants
     def __iadd__(self, other):
-        return self.__add__(other)
+        self.value = (self.value + int(other)) & 0xFFFF
+        return self
 
     def __isub__(self, other):
-        return self.__sub__(other)
+        self.value = (self.value - int(other)) & 0xFFFF
+        return self
 
     def __imul__(self, other):
-        return self.__mul__(other)
+        self.value = (self.value * int(other)) & 0xFFFF
+        return self
 
     def __ifloordiv__(self, other):
-        return self.__floordiv__(other)
+        self.value = (self.value // int(other)) & 0xFFFF
+        return self
 
     # Comparisons
     def __eq__(self, other):
@@ -119,10 +124,13 @@ class UInt16:
 
     # String representation
     def __repr__(self):
-        return str(self.value)
+        return f"{self.value}{'*' if self.enchanted else ''}"
 
     def __str__(self):
-        return str(self.value)
+        return f"{self.value}{'*' if self.enchanted else ''}"
+
+    def clone(self):
+        return UInt16(self.value, self.enchanted)
 
 class UInt16Array:
     def __init__(self, size):
@@ -140,6 +148,18 @@ class UInt16Array:
 
     def __len__(self):
         return len(self.data)
+
+    def snapshot(self):
+        return [cell.clone() for cell in self.data]
+
+    def restore_with_enchantments(self, snapshot):
+        for i, snap in enumerate(snapshot):
+            if snap.enchanted:
+                # keep modified value, drop enchant flag
+                self.data[i].enchanted = False
+            else:
+                # revert unenchanted cells
+                self.data[i] = snap.clone()
 
 def shuffle(n):
     # Swap even and odd:
@@ -223,7 +243,12 @@ def instruction_to_microinstructions(word):
     wordz += 1
     array = to_base_n_1_indexed(wordz, base)
     return array
- 
+
+def restore_register_with_enchantment(reg, snap):
+    if not reg.enchanted:
+        return snap.clone()
+    return UInt16(int(reg), enchanted=False)  # keep the enchanted value
+
 def run_snippet(array):
     memory = UInt16Array(65536)
 
@@ -232,103 +257,129 @@ def run_snippet(array):
     pointerTwo = UInt16(0)
     accumulator = UInt16(0)
     registerA = UInt16(0)
-    checkFlag = 0
+    checkFlag = UInt16(0)
      
     overheadPC = 0
 
     Input = True
     Output =  True
 
+    snapshot = {
+        "memory": memory.snapshot(),
+        "pointerOne": pointerOne.clone(),
+        "pointerTwo": pointerTwo.clone(),
+        "accumulator": accumulator.clone(),
+        "registerA": registerA.clone(),
+        "checkFlag": checkFlag.clone(),
+    }
     while pc < len(array):
         if pc >= 0:
             opcode = array[pc]
-            if opcode == 1: # Increment pointer1
+
+            if opcode == 1:  # Increment pointer1
                 pointerOne += UInt16(1)
-            elif opcode == 2: # Increment pointer2
+            elif opcode == 2:  # Increment pointer2
                 pointerTwo += UInt16(1)
-            elif opcode == 3: # Set pointerone to accumlator
-                pointerOne = UInt16(int(accumulator))
-            elif opcode == 4: # Set pointertwo to accumlator
-                pointerTwo = UInt16(int(accumulator))
-            elif opcode == 5: # Set pointer to the memory addr it is pointing at
-                pointerOne = memory[int(pointerOne)]
-            elif opcode == 6: # Set pointer to the memory addr it is pointing at
-                pointerTwo = memory[int(pointerOne)]
-            elif opcode == 7: # set pointerOne addr to pointerTwo addr
-                memory[int(pointerOne)] = UInt16(int(memory[int(pointerTwo)]))
-            elif opcode == 8: # set pointerTwo addr to pointerOne addr
-                memory[int(pointerTwo)] = memory[int(pointerOne)]
-            elif opcode == 9: # swap values
-                memory[int(pointerOne)], memory[int(pointerTwo)] = memory[int(pointerTwo)], memory[int(pointerOne)]
+            elif opcode == 3:  # Set pointerOne to accumulator
+                pointerOne = accumulator.clone()
+            elif opcode == 4:  # Set pointerTwo to accumulator
+                pointerTwo = accumulator.clone()
+            elif opcode == 5:  # Set pointerOne to the memory addr it is pointing at
+                pointerOne = memory[int(pointerOne)].clone()
+            elif opcode == 6:  # Set pointerTwo to the memory addr it is pointing at
+                pointerTwo = memory[int(pointerOne)].clone()
+            elif opcode == 7:  # Set pointerOne addr to pointerTwo addr
+                memory[int(pointerOne)] = memory[int(pointerTwo)].clone()
+            elif opcode == 8:  # Set pointerTwo addr to pointerOne addr
+                memory[int(pointerTwo)] = memory[int(pointerOne)].clone()
+            elif opcode == 9:  # Swap values
+                memory[int(pointerOne)], memory[int(pointerTwo)] = memory[int(pointerTwo)].clone(), memory[int(pointerOne)].clone()
             elif opcode == 10:
                 memory[int(pointerOne)] = UInt16(0)
             elif opcode == 11:
                 memory[int(pointerTwo)] = UInt16(0)
             elif opcode == 12:
-                accumulator += registerA
+                accumulator += registerA.clone()
             elif opcode == 13:
-                accumulator -= registerA
+                accumulator -= registerA.clone()
             elif opcode == 14:
-                accumulator  *= registerA
+                accumulator *= registerA.clone()
             elif opcode == 15:
-                accumulator  //= registerA
+                accumulator //= registerA.clone()
             elif opcode == 16:
-                accumulator = UInt16(int(registerA))
+                accumulator = registerA.clone()
             elif opcode == 17:
-                accumulator = accumulator  ** 2
+                accumulator = accumulator.clone() ** 2
             elif opcode == 18:
-                registerA = UInt16(int(memory[int(pointerOne)]))
+                registerA = memory[int(pointerOne)].clone()
             elif opcode == 19:
-                registerA = UInt16(int(memory[int(pointerTwo)]))
+                registerA = memory[int(pointerTwo)].clone()
             elif opcode == 20:
-                if checkFlag == 1:
-                    overheadPC = int(memory[int(pointerOne)])
+                if int(checkFlag) == 1:
+                    overheadPC = memory[int(pointerOne)].clone().value
                 else:
-                    overheadPC = int(memory[int(pointerOne)])*-1
+                    overheadPC = -memory[int(pointerOne)].clone().value
             elif opcode == 21:
-                memory[int(pointerOne)] += 1
+                memory[int(pointerOne)] += UInt16(1)
             elif opcode == 22:
-                memory[int(pointerTwo)] += 1
+                memory[int(pointerTwo)] += UInt16(1)
             elif opcode == 23:
-                memory[int(pointerOne)] -= 1
+                memory[int(pointerOne)] -= UInt16(1)
             elif opcode == 24:
-                memory[int(pointerTwo)] -= 1
+                memory[int(pointerTwo)] -= UInt16(1)
             elif opcode == 25:
-                pc += int(accumulator)
+                pc += int(accumulator.clone().value)
             elif opcode == 26:
-                pc -= int(accumulator)
+                pc -= int(accumulator.clone().value)
             elif opcode == 27:
-                memory[int(pointerOne)] = UInt16(int(accumulator))
+                memory[int(pointerOne)] = accumulator.clone()
             elif opcode == 28:
-                memory[int(pointerTwo)] = UInt16(int(accumulator))
-            elif opcode == 29: # input
+                memory[int(pointerTwo)] = accumulator.clone()
+            elif opcode == 29:  # Input
                 if Input:
                     char = getch()
-                    memory[int(pointerOne)] = ord(char)
-            elif opcode == 30:
+                    memory[int(pointerOne)] = UInt16(ord(char))
+            elif opcode == 30:  # Output
                 if Output:
-                    val = int(memory[int(pointerOne)])
+                    val = memory[int(pointerOne)].clone().value
                     try:
-                        print(chr(val), end='') 
+                        print(chr(val), end='')
                     except ValueError:
                         print('?', end='')
             elif opcode == 31:
-                if int(accumulator) == int(registerA):
-                    checkFlag = 1
-                else:
-                    checkFlag = 0
+                checkFlag = 1 if accumulator.clone().value == registerA.clone().value else 0
             elif opcode == 32:
-                if int(accumulator) < int(registerA):
-                    checkFlag = 1
-                else:
-                    checkFlag = 0
+                checkFlag = 1 if accumulator.clone().value < registerA.clone().value else 0
             elif opcode == 33:
                 accumulator = UInt16(checkFlag)
-            elif opcode == 34: # Not Checkflag
-                checkFlag = 1-checkFlag 
-            elif opcode:
+            elif opcode == 34:  # Not checkFlag
+                checkFlag = 1 - checkFlag
+            elif opcode == 35:  # Toggle enchantment
+                cell = memory[int(pointerOne)]
+                cell.enchanted = not cell.enchanted
+            else:
                 pass
+
         pc += 1
+    any_enchanted = any(cell.enchanted for cell in memory.data)
+
+    if any_enchanted:
+        # Save current enchanted values (unenchant them)
+        final_enchanted = {i: int(cell) for i, cell in enumerate(memory.data) if cell.enchanted}
+        
+        # Restore **all memory** from snapshot
+        memory.data = [snap.clone() for snap in snapshot["memory"]]
+        
+        # Overwrite enchanted cells with their original value WITHOUT enchantment
+        for i, val in final_enchanted.items():
+            memory[i] = UInt16(val, enchanted=False)
+        
+        # Restore registers
+        pointerOne = restore_register_with_enchantment(pointerOne, snapshot["pointerOne"])
+        pointerTwo = restore_register_with_enchantment(pointerTwo, snapshot["pointerTwo"])
+        accumulator = restore_register_with_enchantment(accumulator, snapshot["accumulator"])
+        registerA = restore_register_with_enchantment(registerA, snapshot["registerA"])
+        checkFlag = restore_register_with_enchantment(checkFlag, snapshot["checkFlag"])
 
     print("=== End Of Execution ===")
     print(f"P1: {pointerOne} P2: {pointerTwo}\nACC: {accumulator}  REG:{registerA} CHKF:{checkFlag}")
@@ -363,4 +414,3 @@ print(microinstructions_to_instruction(CATprogram))
 print(disassemble(CATprogram))
 
 print(instruction_to_microinstructions(microinstructions_to_instruction(CATprogram)))
-
